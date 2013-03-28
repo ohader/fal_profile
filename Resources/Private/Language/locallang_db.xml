@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3locallang>
+	<meta type="array">
+		<type>database</type>
+		<description>Language labels for database tables/fields belonging to extension 'fal_profile'</description>
+	</meta>
+	<data type="array">
+		<languageKey index="default" type="array">
+			<label index="sys_file_storage.FalProfile.div">Profiles (ICC)</label>
+			<label index="sys_file_storage.FalProfile.configuration">Configuration</label>
+			<label index="sys_file_storage.FalProfile.enable">Enable</label>
+			<label index="sys_file_storage.FalProfile.source">Source Profile (ICC)</label>
+			<label index="sys_file_storage.FalProfile.target">Target Profile (ICC)</label>
+		</languageKey>
+	</data>
+</T3locallang>
