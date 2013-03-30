@@ -30,7 +30,7 @@ namespace OliverHader\FalProfile;
  * @author Oliver Hader <oliver.hader@typo3.org>
  * @license http://www.gnu.org/licenses/gpl.html GNU General Public License, version 2 or later
  */
-class Bootstrap implements \TYPO3\CMS\Core\SingletonInterface {
+class Bootstrap {
 
 	const FIELD_Configuration = 'fal_profile_configuration';
 	const CONFIGURATION_Scope = 'FalProfile';
@@ -49,14 +49,14 @@ class Bootstrap implements \TYPO3\CMS\Core\SingletonInterface {
 		self::getSignalSlotDispatcher()->connect(
 			'TYPO3\\CMS\\Core\\Resource\\ResourceStorage',
 			\TYPO3\CMS\Core\Resource\Service\FileProcessingService::SIGNAL_PreFileProcess,
-			'OliverHader\\FalProfile\\FileProcessingSlot',
+			'OliverHader\\FalProfile\\Slot\\FileProcessingSlot',
 			'preProcess'
 		);
 
 		self::getSignalSlotDispatcher()->connect(
 			'TYPO3\\CMS\\Core\\Resource\\ResourceStorage',
 			\TYPO3\CMS\Core\Resource\ResourceStorage::SIGNAL_PostProcessConfiguration,
-			'OliverHader\\FalProfile\\FileStorageSlot',
+			'OliverHader\\FalProfile\\Slot\\ResourceStorageSlot',
 			'postProcessConfiguration'
 		);
 	}

@@ -1,5 +1,6 @@
 <?php
-namespace OliverHader\FalProfile;
+namespace OliverHader\FalProfile\Slot;
+use OliverHader\FalProfile\Bootstrap;
 
 /***************************************************************
  *  Copyright notice
