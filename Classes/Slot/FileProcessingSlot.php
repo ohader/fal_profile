@@ -33,10 +33,17 @@ use OliverHader\FalProfile\Bootstrap;
  */
 class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 
+	const DEFAULT_ProcessingFolder = '_processed_profile_';
+
 	/**
 	 * @var \TYPO3\CMS\Core\Imaging\GraphicalFunctions
 	 */
 	protected $graphicalFunctions;
+
+	/**
+	 * @var array|\TYPO3\CMS\Core\Resource\Folder[]
+	 */
+	protected $processingFolders = array();
 
 	/**
 	 * Pre-processes a task and executes the ICC profile transformation.
@@ -74,15 +81,18 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 		$targetProfile = $this->getUploadFolder() . $storageConfiguration[Bootstrap::CONFIGURATION_Scope]['target'];
 
 		$targetFileName = 'FalProfile_' . $file->getName();
+		$processingFolder = $this->getProcessingFolder($driver, $storage);
 
-		// Create transformation if it does not exist
-		if ($storage->getProcessingFolder()->hasFile($targetFileName) === FALSE) {
-			// Create a new/empty file object
-			$targetFile = $driver->createFile(
-				'FalProfile_' . $file->getName(),
-				$storage->getProcessingFolder()
+		// Use existing transformation
+		if ($processingFolder->hasFile($targetFileName)) {
+			$targetFile = $storage->getFile(
+				$processingFolder->getIdentifier() . $targetFileName
 			);
 
+		// Create transformation if it does not exist
+		} else {
+			// Create a new/empty file object
+			$targetFile = $driver->createFile($targetFileName, $processingFolder);
 			// Get a temporary file name that will replace the empty object later
 			$temporaryTargetFileName = $targetFile->getForLocalProcessing(TRUE);
 
@@ -100,12 +110,6 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 
 			// Replace the empty file object with the actual transformed data
 			$storage->replaceFile($targetFile, $temporaryTargetFileName);
-
-		// Use existing transformation
-		} else {
-			$targetFile = $storage->getFile(
-				$storage->getProcessingFolder()->getIdentifier() . $targetFileName
-			);
 		}
 
 		/** @var $task \TYPO3\CMS\Core\Resource\Processing\AbstractTask */
@@ -113,6 +117,44 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 		// Set the task's source file that will be used to
 		// continue further processing (e.g. resizing an image)
 		$task->setSourceFile($targetFile);
+	}
+
+	/**
+	 * Creates the custom processing folder per storage.
+	 *
+	 * @param \TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver
+	 * @param \TYPO3\CMS\Core\Resource\ResourceStorage $storage
+	 * @return \TYPO3\CMS\Core\Resource\Folder
+	 */
+	protected function getProcessingFolder(
+		\TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver,
+		\TYPO3\CMS\Core\Resource\ResourceStorage $storage
+	) {
+
+		if (!isset($this->processingFolders[$storage->getUid()])) {
+			$processingFolder = '/' . trim(self::DEFAULT_ProcessingFolder, '/') . '/';
+
+			if ($driver->folderExists($processingFolder) === FALSE) {
+				$folderParts = explode('/', $processingFolder);
+				$parentFolder = $driver->getRootLevelFolder();
+
+				foreach ($folderParts as $folderPart) {
+					if ($folderPart === '') {
+						continue;
+					}
+
+					if (!$driver->folderExistsInFolder($folderPart, $parentFolder)) {
+						$parentFolder = $driver->createFolder($folderPart, $parentFolder);
+					} else {
+						$parentFolder = $parentFolder->getSubfolder($folderPart);
+					}
+				}
+			}
+
+			$this->processingFolders[$storage->getUid()] = $driver->getFolder($processingFolder);
+		}
+
+		return $this->processingFolders[$storage->getUid()];
 	}
 
 	/**
