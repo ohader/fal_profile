@@ -28,7 +28,7 @@ namespace OliverHader\FalProfile;
 /**
  * @package fal_profile
  * @author Oliver Hader <oliver.hader@typo3.org>
- * @license http://www.gnu.org/licenses/gpl.html GNU General Public License, version 2 or later
+ * @license http://www.gnu.org/licenses/gpl.html GNU General Public License, version 3 or later
  */
 class Bootstrap {
 
