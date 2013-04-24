@@ -66,6 +66,8 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 		$context, array $configuration
 	) {
 
+		/** @var $task \TYPO3\CMS\Core\Resource\Processing\AbstractTask */
+		$task = $processedFile->getTask();
 		$storage = $processedFile->getStorage();
 		$storageConfiguration = $storage->getConfiguration();
 
@@ -82,15 +84,20 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 
 		$targetFileName = 'FalProfile_' . $file->getName();
 		$processingFolder = $this->getProcessingFolder($driver, $storage);
+		$targetFile = NULL;
 
-		// Use existing transformation
+		// Find existing transformation result
 		if ($processingFolder->hasFile($targetFileName)) {
 			$targetFile = $storage->getFile(
 				$processingFolder->getIdentifier() . $targetFileName
 			);
+			// Update source file since it will be used
+			// to determine changes in ProcessedFile::needsReprocessing()
+			$task->setSourceFile($targetFile);
+		}
 
-		// Create transformation if it does not exist
-		} else {
+		// Create transformation if it does not exist or seems to be out-dated
+		if ($targetFile === NULL || $processedFile->needsReprocessing()) {
 			// Create a new/empty file object
 			$targetFile = $driver->createFile($targetFileName, $processingFolder);
 			// Get a temporary file name that will replace the empty object later
@@ -112,8 +119,6 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 			$storage->replaceFile($targetFile, $temporaryTargetFileName);
 		}
 
-		/** @var $task \TYPO3\CMS\Core\Resource\Processing\AbstractTask */
-		$task = $processedFile->getTask();
 		// Set the task's source file that will be used to
 		// continue further processing (e.g. resizing an image)
 		$task->setSourceFile($targetFile);
