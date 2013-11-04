@@ -67,12 +67,7 @@ class Bootstrap {
 	 * @return \TYPO3\CMS\Extbase\SignalSlot\Dispatcher
 	 */
 	public static function getSignalSlotDispatcher() {
-		try {
-			$signalSlotDispatcher = self::getObjectManager()->get('TYPO3\\CMS\\Extbase\\SignalSlot\\Dispatcher');
-		} catch (\TYPO3\CMS\Core\Cache\Exception\NoSuchCacheException $exception) {
-			$signalSlotDispatcher = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Extbase\\SignalSlot\\Dispatcher');
-		}
-
+		$signalSlotDispatcher = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Extbase\\SignalSlot\\Dispatcher');
 		return $signalSlotDispatcher;
 	}
 
