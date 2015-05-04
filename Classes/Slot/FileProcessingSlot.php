@@ -173,4 +173,3 @@ class FileProcessingSlot implements SingletonInterface {
 	}
 
 }
-?>
