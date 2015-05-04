@@ -4,7 +4,7 @@ namespace OliverHader\FalProfile;
 /***************************************************************
  *  Copyright notice
  *
- *  (c) 2013 Oliver Hader <oliver.hader@typo3.org>
+ *  (c) 2013-2015 Oliver Hader <oliver.hader@typo3.org>
  *  
  *  All rights reserved
  *
@@ -51,13 +51,6 @@ class Bootstrap {
 			\TYPO3\CMS\Core\Resource\Service\FileProcessingService::SIGNAL_PreFileProcess,
 			'OliverHader\\FalProfile\\Slot\\FileProcessingSlot',
 			'preProcess'
-		);
-
-		self::getSignalSlotDispatcher()->connect(
-			'TYPO3\\CMS\\Core\\Resource\\ResourceStorage',
-			\TYPO3\CMS\Core\Resource\ResourceStorage::SIGNAL_PostProcessConfiguration,
-			'OliverHader\\FalProfile\\Slot\\ResourceStorageSlot',
-			'postProcessConfiguration'
 		);
 	}
 

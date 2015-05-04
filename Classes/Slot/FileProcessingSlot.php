@@ -1,11 +1,10 @@
 <?php
 namespace OliverHader\FalProfile\Slot;
-use OliverHader\FalProfile\Bootstrap;
 
 /***************************************************************
  *  Copyright notice
  *
- *  (c) 2013 Oliver Hader <oliver.hader@typo3.org>
+ *  (c) 2013-2015 Oliver Hader <oliver.hader@typo3.org>
  *  
  *  All rights reserved
  *
@@ -26,12 +25,22 @@ use OliverHader\FalProfile\Bootstrap;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
+use TYPO3\CMS\Core\SingletonInterface;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Resource\Folder;
+use TYPO3\CMS\Core\Resource\FileInterface;
+use TYPO3\CMS\Core\Resource\ProcessedFile;
+use TYPO3\CMS\Core\Resource\ResourceStorage;
+use TYPO3\CMS\Core\Resource\Driver\AbstractDriver;
+use TYPO3\CMS\Core\Resource\Service\FileProcessingService;
+use OliverHader\FalProfile\Service\Storage\ConfigurationService;
+
 /**
  * @package fal_profile
  * @author Oliver Hader <oliver.hader@typo3.org>
  * @license http://www.gnu.org/licenses/gpl.html GNU General Public License, version 3 or later
  */
-class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
+class FileProcessingSlot implements SingletonInterface {
 
 	const DEFAULT_ProcessingFolder = '_processed_profile_';
 
@@ -50,40 +59,29 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 	 * A new file with a 'FalProfile_' prefix is created in the processing folder.
 	 * The regular processing task is then based on the new transformed file.
 	 *
-	 * @param \TYPO3\CMS\Core\Resource\Service\FileProcessingService $fileProcessingService
-	 * @param \TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver
-	 * @param \TYPO3\CMS\Core\Resource\ProcessedFile $processedFile
-	 * @param \TYPO3\CMS\Core\Resource\FileInterface $file
+	 * @param FileProcessingService $fileProcessingService
+	 * @param AbstractDriver $driver
+	 * @param ProcessedFile $processedFile
+	 * @param FileInterface $file
 	 * @param string $context
 	 * @param array $configuration
 	 * @return void
 	 */
-	public function preProcess(
-		\TYPO3\CMS\Core\Resource\Service\FileProcessingService $fileProcessingService,
-		\TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver,
-		\TYPO3\CMS\Core\Resource\ProcessedFile $processedFile,
-		\TYPO3\CMS\Core\Resource\FileInterface $file,
-		$context, array $configuration
-	) {
-
+	public function preProcess(FileProcessingService $fileProcessingService, AbstractDriver $driver, ProcessedFile $processedFile, FileInterface $file, $context, array $configuration) {
 		/** @var $task \TYPO3\CMS\Core\Resource\Processing\AbstractTask */
 		$task = $processedFile->getTask();
 		$storage = $processedFile->getStorage();
-		$storageConfiguration = $storage->getConfiguration();
+		$storageConfiguration = ConfigurationService::create()->forStorage($storage);
 
-		if (
-			empty($storageConfiguration[Bootstrap::CONFIGURATION_Scope]['enable']) ||
-			empty($storageConfiguration[Bootstrap::CONFIGURATION_Scope]['source']) ||
-			empty($storageConfiguration[Bootstrap::CONFIGURATION_Scope]['target'])
-		) {
+		if (!$storageConfiguration->__validate()) {
 			return NULL;
 		}
 
-		$sourceProfile = $this->getUploadFolder() . $storageConfiguration[Bootstrap::CONFIGURATION_Scope]['source'];
-		$targetProfile = $this->getUploadFolder() . $storageConfiguration[Bootstrap::CONFIGURATION_Scope]['target'];
+		$sourceProfile = $this->getUploadFolder() . $storageConfiguration->getSource();
+		$targetProfile = $this->getUploadFolder() . $storageConfiguration->getTarget();
 
 		$targetFileName = 'FalProfile_' . $file->getName();
-		$processingFolder = $this->getProcessingFolder($driver, $storage);
+		$processingFolder = $this->getProcessingFolder($storage);
 		$targetFile = NULL;
 
 		// Find existing transformation result
@@ -99,13 +97,13 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 		// Create transformation if it does not exist or seems to be out-dated
 		if ($targetFile === NULL || $processedFile->needsReprocessing()) {
 			// Create a new/empty file object
-			$targetFile = $driver->createFile($targetFileName, $processingFolder);
+			$targetFile = $storage->createFile($targetFileName, $processingFolder);
 			// Get a temporary file name that will replace the empty object later
 			$temporaryTargetFileName = $targetFile->getForLocalProcessing(TRUE);
 
 			$parameters = array(
-				'-profile ' . \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($sourceProfile),
-				'-profile ' . \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($targetProfile),
+				'-profile ' . GeneralUtility::getFileAbsFileName($sourceProfile),
+				'-profile ' . GeneralUtility::getFileAbsFileName($targetProfile),
 			);
 
 			// Trigger ImageMagick to execute the profile transformation
@@ -127,36 +125,19 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 	/**
 	 * Creates the custom processing folder per storage.
 	 *
-	 * @param \TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver
-	 * @param \TYPO3\CMS\Core\Resource\ResourceStorage $storage
-	 * @return \TYPO3\CMS\Core\Resource\Folder
+	 * @param ResourceStorage $storage
+	 * @return Folder
 	 */
-	protected function getProcessingFolder(
-		\TYPO3\CMS\Core\Resource\Driver\AbstractDriver $driver,
-		\TYPO3\CMS\Core\Resource\ResourceStorage $storage
-	) {
+	protected function getProcessingFolder(ResourceStorage $storage) {
 
 		if (!isset($this->processingFolders[$storage->getUid()])) {
-			$processingFolder = '/' . trim(self::DEFAULT_ProcessingFolder, '/') . '/';
-
-			if ($driver->folderExists($processingFolder) === FALSE) {
-				$folderParts = explode('/', $processingFolder);
-				$parentFolder = $driver->getRootLevelFolder();
-
-				foreach ($folderParts as $folderPart) {
-					if ($folderPart === '') {
-						continue;
-					}
-
-					if (!$driver->folderExistsInFolder($folderPart, $parentFolder)) {
-						$parentFolder = $driver->createFolder($folderPart, $parentFolder);
-					} else {
-						$parentFolder = $parentFolder->getSubfolder($folderPart);
-					}
-				}
+			if ($storage->hasFolder(self::DEFAULT_ProcessingFolder)) {
+				$processingFolder = $storage->getFolder(self::DEFAULT_ProcessingFolder);
+			} else {
+				$processingFolder = $storage->createFolder(self::DEFAULT_ProcessingFolder);
 			}
 
-			$this->processingFolders[$storage->getUid()] = $driver->getFolder($processingFolder);
+			$this->processingFolders[$storage->getUid()] = $processingFolder;
 		}
 
 		return $this->processingFolders[$storage->getUid()];
@@ -174,7 +155,7 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 	 */
 	protected function getGraphicalFunctions() {
 		if (!isset($this->graphicalFunctions)) {
-			$this->graphicalFunctions = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			$this->graphicalFunctions = GeneralUtility::makeInstance(
 				'TYPO3\\CMS\\Core\\Imaging\\GraphicalFunctions'
 			);
 		}
@@ -186,7 +167,7 @@ class FileProcessingSlot implements \TYPO3\CMS\Core\SingletonInterface {
 	 * @return \TYPO3\CMS\Core\Resource\ProcessedFileRepository
 	 */
 	protected function getProcessedFileRepository() {
-		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+		return GeneralUtility::makeInstance(
 			'TYPO3\\CMS\\Core\\Resource\\ProcessedFileRepository'
 		);
 	}
