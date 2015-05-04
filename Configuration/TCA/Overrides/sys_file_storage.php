@@ -18,4 +18,3 @@ $tempColumns = array (
 	'sys_file_storage',
 	'--div--;LLL:EXT:fal_profile/Resources/Private/Language/locallang_db.xml:sys_file_storage.FalProfile.div, fal_profile_configuration;;;;1-1-1'
 );
-?>
