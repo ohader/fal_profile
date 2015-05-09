@@ -80,7 +80,8 @@ class FileProcessingSlot implements SingletonInterface {
 		$sourceProfile = $this->getUploadFolder() . $storageConfiguration->getSource();
 		$targetProfile = $this->getUploadFolder() . $storageConfiguration->getTarget();
 
-		$targetFileName = 'FalProfile_' . $file->getName();
+		// File name takes SHA1 of original file - thus, changes are in the original file are determined
+		$targetFileName = 'FalProfile_' . $file->getNameWithoutExtension() . '_' . $file->getSha1() . '.' . $file->getExtension();
 		$processingFolder = $this->getProcessingFolder($storage);
 		$targetFile = NULL;
 
@@ -89,15 +90,13 @@ class FileProcessingSlot implements SingletonInterface {
 			$targetFile = $storage->getFile(
 				$processingFolder->getIdentifier() . $targetFileName
 			);
-			// Update source file since it will be used
-			// to determine changes in ProcessedFile::needsReprocessing()
-			$task->setSourceFile($targetFile);
 		}
 
-		// Create transformation if it does not exist or seems to be out-dated
-		if ($targetFile === NULL || $processedFile->needsReprocessing()) {
+		// Process the original file and put results to target file
+		if ($targetFile === NULL) {
 			// Create a new/empty file object
 			$targetFile = $storage->createFile($targetFileName, $processingFolder);
+
 			// Get a temporary file name that will replace the empty object later
 			$temporaryTargetFileName = $targetFile->getForLocalProcessing(TRUE);
 
@@ -129,7 +128,6 @@ class FileProcessingSlot implements SingletonInterface {
 	 * @return Folder
 	 */
 	protected function getProcessingFolder(ResourceStorage $storage) {
-
 		if (!isset($this->processingFolders[$storage->getUid()])) {
 			if ($storage->hasFolder(self::DEFAULT_ProcessingFolder)) {
 				$processingFolder = $storage->getFolder(self::DEFAULT_ProcessingFolder);
@@ -145,6 +143,7 @@ class FileProcessingSlot implements SingletonInterface {
 
 	/**
 	 * @return string
+	 * @todo Make this configurable
 	 */
 	protected function getUploadFolder() {
 		return 'uploads/fal_profile/';
@@ -161,15 +160,6 @@ class FileProcessingSlot implements SingletonInterface {
 		}
 
 		return $this->graphicalFunctions;
-	}
-
-	/**
-	 * @return \TYPO3\CMS\Core\Resource\ProcessedFileRepository
-	 */
-	protected function getProcessedFileRepository() {
-		return GeneralUtility::makeInstance(
-			'TYPO3\\CMS\\Core\\Resource\\ProcessedFileRepository'
-		);
 	}
 
 }
